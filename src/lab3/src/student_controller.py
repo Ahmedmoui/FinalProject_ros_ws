@@ -6,8 +6,7 @@ import rospy
 import signal
 
 from controller import RobotController
-#from path_planning import convert_image, dijkstra, open_image, plot_with_path
-from path_planning import dijkstra
+
 from exploring import find_all_possible_goals, find_best_point, plot_with_explore_points, find_waypoints
 
 class StudentController(RobotController):
