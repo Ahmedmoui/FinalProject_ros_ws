@@ -31,6 +31,9 @@ class StudentDriver(Driver):
 		return False
 
 	def get_twist(self, target, lidar):
+
+		K = 5 #gain for turing from objects
+		Turning_Threshhold = 1 # Range to start turning from walls m
 		'''
 		This function is called whenever there a current target is set and there is a lidar data
 		available.  This is where you should put your code for moving the robot.  The target point
@@ -49,23 +52,47 @@ class StudentDriver(Driver):
 			A Twist message, containing the commanded robot velocities.
 		'''
 		angle = atan2(target[1], target[0])
-		distance = sqrt(target[0] ** 2 + target[1] **2)
-		rospy.loginfo(f'Distance: {distance:.2f}, angle: {angle:.2f}')
+		distance_target = sqrt(target[0] ** 2 + target[1] **2)
+		rospy.loginfo(f'Distance: {distance_target:.2f}, angle: {angle:.2f}')
 
 		# This builds a Twist message with all elements set to zero.
 		command = Driver.zero_twist()
 
 		# Forwards velocity goes here, in meters per second.
 		max_linear_speed = 0.4
-		command.linear.x = min(max_linear_speed, distance * 0.5)
+		command.linear.x = min(max_linear_speed, distance_target * 0.5)
+
+		command.linear.x = command.linear.x - command.linear.x * abs(angle) # slows the robot down if not pointing at target
 
 		# Rotational velocity goes here, in radians per second.  Positive is counter-clockwise.
-		max_angular_speed = pi / 4
+		max_angular_speed = pi / 5
 		command.angular.z = max(-max_angular_speed, min(max_angular_speed, angle * 2))
 
+		if lidar:
+
+			min_forward_distance = min(lidar.ranges[i] for i in range(30,150,1))
+			T_Thresh = min(Turning_Threshhold, distance_target) # threshhold for turning between max 2m and distance to taget
+
+			if min_forward_distance < 0.2: #checking for forward collision
+				rospy.logerr_throttle(5,f'Colided With wall. Reversing...')
+				command.linear.x =  -.4 # reverse to give some space
+				
+
+			if min_forward_distance < T_Thresh: 
+
+				command.linear.x = min(max_linear_speed, distance_target * 0.5) # maintain speed during turns
+
+				left_A = sum(lidar.ranges[i] for i in range(0,90,1))
+				right_A = sum(lidar.ranges[i] for i in range(90,180,1))
+				L_ratio = left_A / (left_A + right_A)
+				R_ratio = right_A / (left_A + right_A)
+
+				turning_factor = (R_ratio - L_ratio) # Calculate turning direction from areas, postivie is turn left
+				
+				command.angular.z += (turning_factor) * K  # add to original turning rate
+				rospy.loginfo(f'Twist_Commands: {(turning_factor)}')
 
 		return command
-
 
 if __name__ == '__main__':
 	rospy.init_node('student_driver', argv=sys.argv)
