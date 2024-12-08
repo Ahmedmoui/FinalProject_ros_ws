@@ -61,8 +61,8 @@ class StudentDriver(Driver):
 		# Forwards velocity goes here, in meters per second.
 		max_linear_speed = 0.4
 		command.linear.x = min(max_linear_speed, distance_target * 0.5)
-
-		command.linear.x = command.linear.x - command.linear.x * abs(angle) # slows the robot down if not pointing at target
+		
+		command.linear.x *= (pi - abs(angle))/pi # slows the robot down if not pointing at target
 
 		# Rotational velocity goes here, in radians per second.  Positive is counter-clockwise.
 		max_angular_speed = pi / 5
