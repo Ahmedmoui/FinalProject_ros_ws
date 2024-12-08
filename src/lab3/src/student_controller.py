@@ -45,17 +45,53 @@ class StudentController(RobotController):
 		'''
 		rospy.loginfo('Got a map update.')
 
-		# It's possible that the position passed to this function is None.  This try-except block will deal
-		# with that.  Trying to unpack the position will fail if it's None, and this will raise an exception.
-		# We could also explicitly check to see if the point is None.
 		try:
-			# The (x, y) position of the robot can be retrieved like this.
 			robot_position = (point.point.x, point.point.y)
-
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
 		except:
 			rospy.loginfo('No odometry information')
 
+		# Detect frontiers in the map
+		frontiers = self.find_frontiers(map_data)
+
+		# If we find frontiers, generate a goal and set the waypoint
+		if frontiers:
+			goal = self.generate_frontier_goal(frontiers)
+			rospy.loginfo(f'Setting new goal at {goal}')
+			self.set_waypoints([goal])  # Move to the new frontier
+		else:
+			rospy.loginfo('No frontiers found to explore.')
+
+	def find_frontiers(self, map_data):
+		frontiers = []
+		# Iterate through the map grid, and check for frontier cells
+		for y in range(map_data.info.height):
+			for x in range(map_data.info.width):
+				cell = map_data.data[y * map_data.info.width + x]
+				# A frontier cell is adjacent to both unknown and free space
+				if cell == 0:  # Free space
+					# Check neighboring cells for unknown space
+					if self.is_adjacent_to_unknown(x, y, map_data):
+						frontiers.append((x, y))
+		return frontiers
+
+	def is_adjacent_to_unknown(self, x, y, map_data):
+		directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # 4 cardinal directions
+		for dx, dy in directions:
+			nx, ny = x + dx, y + dy
+			if 0 <= nx < map_data.info.width and 0 <= ny < map_data.info.height:
+				cell = map_data.data[ny * map_data.info.width + nx]
+				if cell == -1:  # Unknown space
+					return True
+		return False
+
+	def generate_frontier_goal(self, frontiers):
+		if not frontiers:
+			rospy.loginfo("No frontiers found!")
+			return None
+		# Choose the first frontier point as the goal
+		goal = frontiers[0]  # You could implement a more sophisticated selection here
+		return goal
 
 if __name__ == '__main__':
 	# Initialize the node.
@@ -72,3 +108,4 @@ if __name__ == '__main__':
 	# Once you call this function, control is given over to the controller, and the robot will start to
 	# move.  This function will never return, so any code below it in the file will not be executed.
 	controller.send_points()
+
