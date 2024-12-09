@@ -4,10 +4,12 @@
 import sys
 import rospy
 import signal
+import numpy as np
 
 from controller import RobotController
 
-from exploring import find_all_possible_goals, find_best_point, plot_with_explore_points, find_waypoints
+from exploring import find_all_possible_goals, find_best_point, plot_with_explore_points, find_waypoints, convert_pix_to_x_y, convert_x_y_to_pix
+from path_planning import convert_image, dijkstra
 
 class StudentController(RobotController):
 	'''
@@ -31,7 +33,7 @@ class StudentController(RobotController):
 		'''
 		#rospy.loginfo(f'Distance: {distance}')
 
-	def map_update(self, point, map, map_data):
+	def map_update(self, point, map, map_Metadata):
 		'''
 		This function is called every time a new map update is available from the SLAM system.  If you want
 		to change where the robot is driving, you can do it in this function.  If you generate a path for
@@ -48,13 +50,34 @@ class StudentController(RobotController):
 		# It's possible that the position passed to this function is None.  This try-except block will deal
 		# with that.  Trying to unpack the position will fail if it's None, and this will raise an exception.
 		# We could also explicitly check to see if the point is None.
-		try:
-			# The (x, y) position of the robot can be retrieved like this.
-			robot_position = (point.point.x, point.point.y)
+		# try:
+		# 	# The (x, y) position of the robot can be retrieved like this.
+		# 	robot_position = (point.point.x, point.point.y)
+		# 	des = find_best_point(map_2D,All_possible_goals,robot_position)
+		# 	rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
+		# except:
+		# 	rospy.loginfo('No odometry information')
 
+
+		map_size = (map_Metadata.width, map_Metadata.height)
+		map_2D = np.array(map.data).reshape((map_size))
+
+		possible_pix = find_all_possible_goals(map_2D)
+
+		All_possible_goals = []
+		for pix in possible_pix:
+			All_possible_goals.append((convert_pix_to_x_y(map_size,pix,map_Metadata.resolution)))
+		
+		try:
+			robot_position = (point.point.x, point.point.y)
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
+			des = find_best_point(map_2D,All_possible_goals,robot_position)
+			path = dijkstra(map_2D,robot_position,des)
+			controller.set_waypoints((find_waypoints(map_2D,path)))
+			rospy.loginfo('Waypoints Set')
 		except:
 			rospy.loginfo('No odometry information')
+
 
 
 if __name__ == '__main__':
@@ -63,11 +86,12 @@ if __name__ == '__main__':
 
 	# Start the controller.
 	controller = StudentController()
-
+		
 	# This will move the robot to a set of fixed waypoints.  You should not do this, since you don't know
 	# if you can get to all of these points without building a map first.  This is just to demonstrate how
 	# to call the function, and make the robot move as an example.
-	controller.set_waypoints(((-4, -3), (-3, 0), (5, 0)))
+	
+	#controller.set_waypoints(((-4, -3), (-3, 0), (5, 0)))
 
 	# Once you call this function, control is given over to the controller, and the robot will start to
 	# move.  This function will never return, so any code below it in the file will not be executed.

@@ -83,7 +83,7 @@ def convert_pix_to_x_y(im_size, pix, size_pix):
     if not (0 <= pix[0] <= im_size[1]) or not (0 <= pix[1] <= im_size[0]):
         raise ValueError(f"Pixel {pix} not in image, image size {im_size}")
 
-    return [size_pix * pix[i] / im_size[1-i] for i in range(0, 2)]
+    return [size_pix * pix[i] / im_size[i] for i in range(0, 2)]
 
 
 def convert_x_y_to_pix(im_size, x_y, size_pix):
@@ -145,24 +145,28 @@ def find_all_possible_goals(im):
     # YOUR CODE HERE
 
     # Define the value for unseen pixels (adjust based on your thresholded map)
-    UNSEEN = 128  # 128 represents unseen pixels in the map
-    Possible_Points = 255
+    unvisited = -1 
+    empty = 0
+    wall = 100
     # Initialize a list to store all possible goals
-    possible_goals = []
 
     # Get image dimensions
     width, height = im.shape
+    empty_cells = im == 0
+    unvisited_cells = im == -1
 
-    # Iterate through all pixels in the image
-    for i in range(width):
-        for j in range(height):
-            # Check if the pixel is free
-            if pp.is_free(im,[i, j]):
-                # Check if it is next to unseen point (adjacent to unseen space)
-                if is_reachable(im, (i, j)):
-                    possible_goals.append((i, j))
+    neighbors = np.zeros_like(im, dtype=bool)
 
-    return possible_goals
+    # Check for neighbors in the 4 directions (up, down, left, right)
+    neighbors[1:, :] |= unvisited_cells[:-1, :]  # Check down
+    neighbors[:-1, :] |= unvisited_cells[1:, :]  # Check up
+    neighbors[:, 1:] |= unvisited_cells[:, :-1]  # Check right
+    neighbors[:, :-1] |= unvisited_cells[:, 1:]  # Check left
+
+    result = empty_cells & neighbors
+    indices = np.where(result)
+    Possible_Points = list(zip(indices[0], indices[1]))
+    return Possible_Points
 
 def find_best_point(im, possible_points, robot_loc):
     """ Pick one of the unseen points to go to
