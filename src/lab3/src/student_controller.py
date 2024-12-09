@@ -31,7 +31,8 @@ class StudentController(RobotController):
 		Parameters:
 			distance:	The distance to the current goal.
 		'''
-		#rospy.loginfo(f'Distance: {distance}')
+		rospy.loginfo(f'Distance: {distance}')
+		
 
 	def map_update(self, point, map, map_Metadata):
 		'''
@@ -60,23 +61,44 @@ class StudentController(RobotController):
 
 
 		map_size = (map_Metadata.width, map_Metadata.height)
+		resolution = map_Metadata.resolution
 		map_2D = np.array(map.data).reshape((map_size))
 
 		possible_pix = find_all_possible_goals(map_2D)
+		#rospy.loginfo(f'Frontier points {possible_pix}')
 
-		All_possible_goals = []
-		for pix in possible_pix:
-			All_possible_goals.append((convert_pix_to_x_y(map_size,pix,map_Metadata.resolution)))
+		# All_possible_goals = []
+		# for pix in possible_pix:
+		# 	All_possible_goals.append((convert_pix_to_x_y(map_size,pix,map_Metadata.resolution)))
 		
-		try:
+		if point is not None:
 			robot_position = (point.point.x, point.point.y)
+			x, y = robot_position
+
+			rob_pos =  (int((x - map_Metadata.origin.position.x)/ resolution), int((y - map_Metadata.origin.position.y)/ resolution))
+
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
-			des = find_best_point(map_2D,All_possible_goals,robot_position)
-			path = dijkstra(map_2D,robot_position,des)
-			controller.set_waypoints((find_waypoints(map_2D,path)))
-			rospy.loginfo('Waypoints Set')
-		except:
-			rospy.loginfo('No odometry information')
+
+		if rob_pos is not None:
+			
+			des = find_best_point(map_2D,possible_pix,rob_pos)
+			Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
+			rospy.loginfo(f'Robot pos, Des {robot_position} ,{Goal_point} ,res {resolution}')
+			rospy.loginfo(f'Robot pos, Des {convert_pix_to_x_y(map_size,rob_pos,resolution)} {convert_pix_to_x_y(map_size,des,resolution)}')
+
+			path = dijkstra(map_2D,rob_pos,des)
+			
+			Path_as_waypoints = find_waypoints(map_2D,path)
+
+			converted_path = []
+			for point in Path_as_waypoints:
+				converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
+
+			rospy.loginfo(f'Waypoints  {converted_path}')
+
+			controller.set_waypoints(((converted_path)))
+
+
 
 
 

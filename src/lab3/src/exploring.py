@@ -137,36 +137,30 @@ def is_reachable(im, pix): #rewrote this so that it checks if the point is next 
 
 
 def find_all_possible_goals(im):
-    """ Find all of the places where you have a pixel that is unseen next to a pixel that is free
-    It is probably easier to do this, THEN cull it down to some reasonable places to try
-    This is because of noise in the map - there may be some isolated pixels
-    @param im - thresholded image
-    @return dictionary or list or binary image of possible pixels"""
-    # YOUR CODE HERE
+    pixels = im
+    # Define labels
+    FREE = 0
+    UNKNOWN = -1
 
-    # Define the value for unseen pixels (adjust based on your thresholded map)
-    unvisited = -1 
-    empty = 0
-    wall = 100
-    # Initialize a list to store all possible goals
+    # Get dimensions of the array
+    height, width = pixels.shape
 
-    # Get image dimensions
-    width, height = im.shape
-    empty_cells = im == 0
-    unvisited_cells = im == -1
+    # Initialize a boolean array for the result
+    result = np.zeros_like(pixels, dtype=bool)
 
-    neighbors = np.zeros_like(im, dtype=bool)
+    # Compare with neighbors using slicing
+    if height > 1:
+        result[1:, :] |= (pixels[1:, :] == FREE) & (pixels[:-1, :] == UNKNOWN)  # Above neighbor
+        result[:-1, :] |= (pixels[:-1, :] == FREE) & (pixels[1:, :] == UNKNOWN)  # Below neighbor
+    if width > 1:
+        result[:, 1:] |= (pixels[:, 1:] == FREE) & (pixels[:, :-1] == UNKNOWN)  # Left neighbor
+        result[:, :-1] |= (pixels[:, :-1] == FREE) & (pixels[:, 1:] == UNKNOWN)  # Right neighbor
 
-    # Check for neighbors in the 4 directions (up, down, left, right)
-    neighbors[1:, :] |= unvisited_cells[:-1, :]  # Check down
-    neighbors[:-1, :] |= unvisited_cells[1:, :]  # Check up
-    neighbors[:, 1:] |= unvisited_cells[:, :-1]  # Check right
-    neighbors[:, :-1] |= unvisited_cells[:, 1:]  # Check left
+    # Get the coordinates of matching pixels
+    coordinates = np.argwhere(result)
 
-    result = empty_cells & neighbors
-    indices = np.where(result)
-    Possible_Points = list(zip(indices[0], indices[1]))
-    return Possible_Points
+    # Return as a single string
+    return [(x, y) for y, x in coordinates]
 
 def find_best_point(im, possible_points, robot_loc):
     """ Pick one of the unseen points to go to

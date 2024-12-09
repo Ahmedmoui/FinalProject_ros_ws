@@ -159,7 +159,7 @@ def is_free(im, pix):
 
     @param pix - the pixel i,j"""
 
-    if im[pix[1], pix[0]] == 255:
+    if im[pix[1], pix[0]] == 0:
 
         return True
 

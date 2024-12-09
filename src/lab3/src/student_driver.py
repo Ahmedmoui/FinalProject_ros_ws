@@ -70,7 +70,7 @@ class StudentDriver(Driver):
 
 		if lidar:
 
-			min_forward_distance = min(lidar.ranges[i] for i in range(30,150,1))
+			min_forward_distance = min(lidar.ranges[i] for i in range(0,180))
 			T_Thresh = min(Turning_Threshhold, distance_target) # threshhold for turning between max 2m and distance to taget
 
 			if min_forward_distance < 0.2: #checking for forward collision
