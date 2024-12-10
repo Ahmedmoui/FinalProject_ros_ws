@@ -176,7 +176,7 @@ def find_best_point(im, possible_points, robot_loc):
 
     # Initialize the best point and the minimum distance
     best_point = None
-    min_distance = 0.0
+    min_distance = float('inf')
 
     # Iterate through all possible points
     for point in possible_points:
@@ -184,7 +184,7 @@ def find_best_point(im, possible_points, robot_loc):
         distance = np.sqrt((robot_loc[0] - point[0])**2 + (robot_loc[1] - point[1])**2)
 
         # Update the best point if a closer point is found
-        if distance > min_distance:
+        if distance < min_distance and distance > .5:
             best_point = point
             min_distance = distance 
 
