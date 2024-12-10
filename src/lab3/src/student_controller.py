@@ -19,6 +19,7 @@ class StudentController(RobotController):
 	'''
 	def __init__(self):
 		super().__init__()
+		self.lock = False
 
 	def distance_update(self, distance):
 		'''
@@ -79,7 +80,7 @@ class StudentController(RobotController):
 
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
 
-		if rob_pos is not None:
+		if self.lock == False:
 			
 			des = find_best_point(map_2D,possible_pix,rob_pos)
 			Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
@@ -97,19 +98,10 @@ class StudentController(RobotController):
 				if converted_path is not None:
 					controller.set_waypoints(((converted_path)))
 					self.lock = True
-				
-			
-			rospy.loginfo(f'Waypoints {len(controller._waypoints)}')
-			if len(controller._waypoints) <= 2:
-					controller._waypoints = None
-					self.lock = False
+					rospy.loginfo(f'Waypoints {len(controller._waypoints)}')
 
-
-			rospy.loginfo(f'Waypoints  {converted_path}')
-
-			controller.set_waypoints(((converted_path)))
-
-
+		if len(controller._waypoints) < 1:
+			self.lock = False
 
 
 
