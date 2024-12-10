@@ -94,6 +94,17 @@ class StudentController(RobotController):
 			for point in Path_as_waypoints:
 				converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
 
+				if converted_path is not None:
+					controller.set_waypoints(((converted_path)))
+					self.lock = True
+				
+			
+			rospy.loginfo(f'Waypoints {len(controller._waypoints)}')
+			if len(controller._waypoints) <= 2:
+					controller._waypoints = None
+					self.lock = False
+
+
 			rospy.loginfo(f'Waypoints  {converted_path}')
 
 			controller.set_waypoints(((converted_path)))
