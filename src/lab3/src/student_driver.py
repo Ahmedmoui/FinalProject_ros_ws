@@ -53,7 +53,7 @@ class StudentDriver(Driver):
 		'''
 		angle = atan2(target[1], target[0])
 		distance_target = sqrt(target[0] ** 2 + target[1] **2)
-		rospy.loginfo(f'Distance: {distance_target:.2f}, angle: {angle:.2f}')
+		#rospy.loginfo(f'Distance: {distance_target:.2f}, angle: {angle:.2f}')
 
 		# This builds a Twist message with all elements set to zero.
 		command = Driver.zero_twist()
@@ -70,7 +70,7 @@ class StudentDriver(Driver):
 
 		if lidar:
 
-			min_forward_distance = min(lidar.ranges[i] for i in range(30,150,1))
+			min_forward_distance = min(lidar.ranges[i] for i in range(0,180))
 			T_Thresh = min(Turning_Threshhold, distance_target) # threshhold for turning between max 2m and distance to taget
 
 			if min_forward_distance < 0.2: #checking for forward collision
@@ -89,8 +89,8 @@ class StudentDriver(Driver):
 
 				turning_factor = (R_ratio - L_ratio) # Calculate turning direction from areas, postivie is turn left
 				
-				command.angular.z += (turning_factor) * K  # add to original turning rate
-				rospy.loginfo(f'Twist_Commands: {(turning_factor)}')
+				command.angular.z += (turning_factor) * K  # add to original turning rate for avoiding corner
+				#rospy.loginfo(f'Twist_Commands: {(turning_factor)}')
 
 		return command
 

@@ -159,7 +159,7 @@ def is_free(im, pix):
 
     @param pix - the pixel i,j"""
 
-    if im[pix[1], pix[0]] == 255:
+    if im[pix[1], pix[0]] == 0:
 
         return True
 
@@ -257,11 +257,8 @@ def eight_connected(pix):
 def dijkstra(im, robot_loc, goal_loc):
 
     if not is_free(im, robot_loc):
-
         raise ValueError(f"Start location {robot_loc} is not in the free space of the map")
-
     if not is_free(im, goal_loc):
-
         raise ValueError(f"Goal location {goal_loc} is not in the free space of the map")
 
 

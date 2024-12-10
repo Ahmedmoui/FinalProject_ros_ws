@@ -83,7 +83,7 @@ def convert_pix_to_x_y(im_size, pix, size_pix):
     if not (0 <= pix[0] <= im_size[1]) or not (0 <= pix[1] <= im_size[0]):
         raise ValueError(f"Pixel {pix} not in image, image size {im_size}")
 
-    return [size_pix * pix[i] / im_size[1-i] for i in range(0, 2)]
+    return [size_pix * pix[i] / im_size[i] for i in range(0, 2)]
 
 
 def convert_x_y_to_pix(im_size, x_y, size_pix):
@@ -137,32 +137,30 @@ def is_reachable(im, pix): #rewrote this so that it checks if the point is next 
 
 
 def find_all_possible_goals(im):
-    """ Find all of the places where you have a pixel that is unseen next to a pixel that is free
-    It is probably easier to do this, THEN cull it down to some reasonable places to try
-    This is because of noise in the map - there may be some isolated pixels
-    @param im - thresholded image
-    @return dictionary or list or binary image of possible pixels"""
-    # YOUR CODE HERE
+    pixels = im
+    # Define labels
+    FREE = 0
+    UNKNOWN = -1
 
-    # Define the value for unseen pixels (adjust based on your thresholded map)
-    UNSEEN = 128  # 128 represents unseen pixels in the map
-    Possible_Points = 255
-    # Initialize a list to store all possible goals
-    possible_goals = []
+    # Get dimensions of the array
+    height, width = pixels.shape
 
-    # Get image dimensions
-    width, height = im.shape
+    # Initialize a boolean array for the result
+    result = np.zeros_like(pixels, dtype=bool)
 
-    # Iterate through all pixels in the image
-    for i in range(width):
-        for j in range(height):
-            # Check if the pixel is free
-            if pp.is_free(im,[i, j]):
-                # Check if it is next to unseen point (adjacent to unseen space)
-                if is_reachable(im, (i, j)):
-                    possible_goals.append((i, j))
+    # Compare with neighbors using slicing
+    if height > 1:
+        result[1:, :] |= (pixels[1:, :] == FREE) & (pixels[:-1, :] == UNKNOWN)  # Above neighbor
+        result[:-1, :] |= (pixels[:-1, :] == FREE) & (pixels[1:, :] == UNKNOWN)  # Below neighbor
+    if width > 1:
+        result[:, 1:] |= (pixels[:, 1:] == FREE) & (pixels[:, :-1] == UNKNOWN)  # Left neighbor
+        result[:, :-1] |= (pixels[:, :-1] == FREE) & (pixels[:, 1:] == UNKNOWN)  # Right neighbor
 
-    return possible_goals
+    # Get the coordinates of matching pixels
+    coordinates = np.argwhere(result)
+
+    # Return as a single string
+    return [(x, y) for y, x in coordinates]
 
 def find_best_point(im, possible_points, robot_loc):
     """ Pick one of the unseen points to go to
