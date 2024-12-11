@@ -23,6 +23,7 @@ class StudentController(RobotController):
 		self.lock = False
 		self.Map = None
 		self.mapUpdate_iteration = 0
+		self.rob_pos = None
 
 		
 		#command = Driver.zero_twist()
@@ -50,6 +51,8 @@ class StudentController(RobotController):
 				rospy.loginfo('Path Lock off')
 			elif len(controller._waypoints) == 0:
 				rospy.loginfo_throttle_identical(Period,'Reached end of path "Waiting for new path"')
+				self.generate_path(self.Map,self.rob_pos,self.map_Metadata,self.resolution)
+
 		except:
 			rospy.loginfo_throttle_identical(Period,'No Waypoints.')
 
@@ -72,6 +75,8 @@ class StudentController(RobotController):
 		resolution = map_Metadata.resolution
 		map_2D = np.array(map.data).reshape((map_size))
 		self.Map = map_2D
+		self.map_metadata = map_Metadata
+		self.resolution = resolution
 
 		#rospy.loginfo(f'Frontier points {possible_pix}')
 
@@ -84,45 +89,47 @@ class StudentController(RobotController):
 			x, y = robot_position
 
 			rob_pos =  (int((x - map_Metadata.origin.position.x)/ resolution), int((y - map_Metadata.origin.position.y)/ resolution))
-
+			self.rob_pos = rob_pos
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
 			rospy.loginfo(f'map update #{self.mapUpdate_iteration}')
 
-			if self.mapUpdate_iteration == 0:
-				#controller.set_waypoints(((tuple((point.point.x+1, point.point.y+1)))))
-				rospy.loginfo(f'1st map update{(point.point.x, point.point.y)}')
+			# if self.mapUpdate_iteration == 0:
+			# 	#controller.set_waypoints(((tuple((point.point.x+1, point.point.y+1)))))
+			# 	rospy.loginfo(f'1st map update{(point.point.x, point.point.y)}')
 			self.mapUpdate_iteration += 1
 
 			if self.lock == False:
 
-				possible_pix = find_all_possible_goals(map_2D)
-				des = find_best_point(map_2D,possible_pix,rob_pos)
-				Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
-				
-				rospy.loginfo(f'Robot pos, Des {robot_position} ,{Goal_point} ,res {resolution}')
-				rospy.loginfo(f'Robot pos, Des {convert_pix_to_x_y(map_size,rob_pos,resolution)} {convert_pix_to_x_y(map_size,des,resolution)}')
+				self.generate_path(map_2D,rob_pos,map_Metadata,resolution)
 
-				map_2D[rob_pos[0], rob_pos[1]] = 0
-				path = dijkstra(map_2D,rob_pos,des)
-				
-				Path_as_waypoints = find_waypoints(map_2D,path)
+			if controller._waypoints is not None:
+				if len(controller._waypoints) == 0:
+					self.lock = False
+					rospy.loginfo('Path Lock off')
 
-				converted_path = []
-				for point in Path_as_waypoints:
-					converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
+	
 
-				if converted_path is not None:
-					controller.set_waypoints(((converted_path)))
-					self.lock = True
-					rospy.loginfo('Path Lock On')
-					#rospy.loginfo(f'Waypoints {(len(controller._waypoints))}')
+	def generate_path(self, map_2D, rob_pos, map_Metadata,resolution):
+		possible_pix = find_all_possible_goals(map_2D)
+		des = find_best_point(map_2D,possible_pix,self.rob_pos)
+		Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
+					
+		map_2D[rob_pos[0], rob_pos[1]] = 0
+		path = dijkstra(map_2D,rob_pos,des)
+					
+		Path_as_waypoints = find_waypoints(map_2D,path)
 
-		if len(controller._waypoints) == 0:
-			self.lock = False
-			rospy.loginfo('Path Lock off')
+		converted_path = []
+		for point in Path_as_waypoints:
+			converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
+		if converted_path is not None:
+			controller.set_waypoints(((converted_path)))
+			self.lock = True
+			rospy.loginfo('Path Lock On')
 
-def convert_pos(point, map_size, resolution, map_metadata):
-	return(point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y)
+		
+	def convert_pos(point, map_size, resolution, map_metadata):
+		return(point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y)
 
 
 if __name__ == '__main__':
