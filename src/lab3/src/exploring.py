@@ -159,10 +159,10 @@ def find_all_possible_goals(im):
     # Get the coordinates of matching pixels
     coordinates = np.argwhere(result)
 
-    # Return as a single string
+    # Return as a single list
     return [(x, y) for y, x in coordinates]
 
-def find_best_point(im, possible_points, robot_loc):
+def find_best_point(im, possible_points, robot_loc, previous_points):
     """ Pick one of the unseen points to go to
     @param im - thresholded image
     @param possible_points - possible points to chose from

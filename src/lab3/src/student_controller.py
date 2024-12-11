@@ -8,7 +8,6 @@ import numpy as np
 
 from controller import RobotController
 
-
 from exploring import find_all_possible_goals, find_best_point, plot_with_explore_points, find_waypoints, convert_pix_to_x_y, convert_x_y_to_pix
 from path_planning import convert_image, dijkstra
 
@@ -24,6 +23,7 @@ class StudentController(RobotController):
 		self.Map = None
 		self.mapUpdate_iteration = 0
 		self.rob_pos = None
+		self.Goal_History = []
 
 		
 		#command = Driver.zero_twist()
@@ -111,7 +111,9 @@ class StudentController(RobotController):
 
 	def generate_path(self, map_2D, rob_pos, map_Metadata,resolution):
 		possible_pix = find_all_possible_goals(map_2D)
-		des = find_best_point(map_2D,possible_pix,self.rob_pos)
+		des = find_best_point(map_2D,possible_pix, self.rob_pos, previous_points=self.Goal_History)
+		self.Goal_History.append(des)
+
 		Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
 					
 		map_2D[rob_pos[0], rob_pos[1]] = 0
