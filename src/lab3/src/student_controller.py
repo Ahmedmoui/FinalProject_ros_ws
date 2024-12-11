@@ -20,6 +20,7 @@ class StudentController(RobotController):
 	def __init__(self):
 		super().__init__()
 		self.lock = False
+		self.Map = None
 
 	def distance_update(self, distance):
 		'''
@@ -33,6 +34,10 @@ class StudentController(RobotController):
 			distance:	The distance to the current goal.
 		'''
 		rospy.loginfo(f'Distance: {distance}')
+		if len(controller._waypoints) <= 1:
+			command.angular.z = 5
+
+		
 		
 
 	def map_update(self, point, map, map_Metadata):
@@ -100,7 +105,7 @@ class StudentController(RobotController):
 					self.lock = True
 					rospy.loginfo(f'Waypoints {len(controller._waypoints)}')
 
-		if len(controller._waypoints) < 1:
+		if len(controller._waypoints) <= 1:
 			self.lock = False
 
 
