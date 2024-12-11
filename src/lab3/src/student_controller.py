@@ -8,6 +8,7 @@ import numpy as np
 
 from controller import RobotController
 
+
 from exploring import find_all_possible_goals, find_best_point, plot_with_explore_points, find_waypoints, convert_pix_to_x_y, convert_x_y_to_pix
 from path_planning import convert_image, dijkstra
 
@@ -19,6 +20,14 @@ class StudentController(RobotController):
 	'''
 	def __init__(self):
 		super().__init__()
+		self.lock = False
+		self.Map = None
+		self.mapUpdate_iteration = 0
+
+		
+		#command = Driver.zero_twist()
+		#command.angular.z = 2
+		#Driver._cmd_pub.publish(command)
 
 	def distance_update(self, distance):
 		'''
@@ -31,8 +40,19 @@ class StudentController(RobotController):
 		Parameters:
 			distance:	The distance to the current goal.
 		'''
-		rospy.loginfo(f'Distance: {distance}')
-		
+		Period = 3
+		waypointsLeftInQ = 3
+		#rospy.loginfo_throttle_identical(Period,f'Distance: {distance}')
+		try:
+			rospy.loginfo_throttle_identical(Period,f'Waypoints left: {len(controller._waypoints)}')
+			if len(controller._waypoints) <= waypointsLeftInQ:
+				self.lock = False
+				rospy.loginfo('Path Lock off')
+			elif len(controller._waypoints) == 0:
+				rospy.loginfo_throttle_identical(Period,'Reached end of path "Waiting for new path"')
+		except:
+			rospy.loginfo_throttle_identical(Period,'No Waypoints.')
+
 
 	def map_update(self, point, map, map_Metadata):
 		'''
@@ -48,23 +68,11 @@ class StudentController(RobotController):
 		'''
 		rospy.loginfo('Got a map update.')
 
-		# It's possible that the position passed to this function is None.  This try-except block will deal
-		# with that.  Trying to unpack the position will fail if it's None, and this will raise an exception.
-		# We could also explicitly check to see if the point is None.
-		# try:
-		# 	# The (x, y) position of the robot can be retrieved like this.
-		# 	robot_position = (point.point.x, point.point.y)
-		# 	des = find_best_point(map_2D,All_possible_goals,robot_position)
-		# 	rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
-		# except:
-		# 	rospy.loginfo('No odometry information')
-
-
 		map_size = (map_Metadata.width, map_Metadata.height)
 		resolution = map_Metadata.resolution
 		map_2D = np.array(map.data).reshape((map_size))
+		self.Map = map_2D
 
-		possible_pix = find_all_possible_goals(map_2D)
 		#rospy.loginfo(f'Frontier points {possible_pix}')
 
 		# All_possible_goals = []
@@ -78,28 +86,43 @@ class StudentController(RobotController):
 			rob_pos =  (int((x - map_Metadata.origin.position.x)/ resolution), int((y - map_Metadata.origin.position.y)/ resolution))
 
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
+			rospy.loginfo(f'map update #{self.mapUpdate_iteration}')
 
-		if rob_pos is not None:
-			
-			des = find_best_point(map_2D,possible_pix,rob_pos)
-			Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
-			rospy.loginfo(f'Robot pos, Des {robot_position} ,{Goal_point} ,res {resolution}')
-			rospy.loginfo(f'Robot pos, Des {convert_pix_to_x_y(map_size,rob_pos,resolution)} {convert_pix_to_x_y(map_size,des,resolution)}')
+			if self.mapUpdate_iteration == 0:
+				#controller.set_waypoints(((tuple((point.point.x+1, point.point.y+1)))))
+				rospy.loginfo(f'1st map update{(point.point.x, point.point.y)}')
+			self.mapUpdate_iteration += 1
 
-			path = dijkstra(map_2D,rob_pos,des)
-			
-			Path_as_waypoints = find_waypoints(map_2D,path)
+			if self.lock == False:
 
-			converted_path = []
-			for point in Path_as_waypoints:
-				converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
+				possible_pix = find_all_possible_goals(map_2D)
+				des = find_best_point(map_2D,possible_pix,rob_pos)
+				Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
+				
+				rospy.loginfo(f'Robot pos, Des {robot_position} ,{Goal_point} ,res {resolution}')
+				rospy.loginfo(f'Robot pos, Des {convert_pix_to_x_y(map_size,rob_pos,resolution)} {convert_pix_to_x_y(map_size,des,resolution)}')
 
-			rospy.loginfo(f'Waypoints  {converted_path}')
+				map_2D[rob_pos[0], rob_pos[1]] = 0
+				path = dijkstra(map_2D,rob_pos,des)
+				
+				Path_as_waypoints = find_waypoints(map_2D,path)
 
-			controller.set_waypoints(((converted_path)))
+				converted_path = []
+				for point in Path_as_waypoints:
+					converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
 
+				if converted_path is not None:
+					controller.set_waypoints(((converted_path)))
+					self.lock = True
+					rospy.loginfo('Path Lock On')
+					#rospy.loginfo(f'Waypoints {(len(controller._waypoints))}')
 
+		if len(controller._waypoints) == 0:
+			self.lock = False
+			rospy.loginfo('Path Lock off')
 
+def convert_pos(point, map_size, resolution, map_metadata):
+	return(point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y)
 
 
 if __name__ == '__main__':

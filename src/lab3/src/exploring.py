@@ -177,7 +177,6 @@ def find_best_point(im, possible_points, robot_loc):
     # Initialize the best point and the minimum distance
     best_point = None
     min_distance = 0.0
-
     # Iterate through all possible points
     for point in possible_points:
         # Calculate Euclidean distance from robot location

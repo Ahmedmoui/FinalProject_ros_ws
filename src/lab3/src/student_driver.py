@@ -14,7 +14,7 @@ class StudentDriver(Driver):
 	This class implements the logic to move the robot to a specific place in the world.  All of the
 	interesting functionality is hidden in the parent class.
 	'''
-	def __init__(self, threshold=0.4):
+	def __init__(self, threshold=0.8):
 		super().__init__('odom')
 		# Set the threshold to a reasonable number
 		self._threshold = threshold
@@ -33,7 +33,7 @@ class StudentDriver(Driver):
 	def get_twist(self, target, lidar):
 
 		K = 5 #gain for turing from objects
-		Turning_Threshhold = 1 # Range to start turning from walls m
+		Turning_Threshhold = 2 # Range to start turning from walls m
 		'''
 		This function is called whenever there a current target is set and there is a lidar data
 		available.  This is where you should put your code for moving the robot.  The target point
@@ -71,7 +71,7 @@ class StudentDriver(Driver):
 		if lidar:
 
 			min_forward_distance = min(lidar.ranges[i] for i in range(0,180))
-			T_Thresh = min(Turning_Threshhold, distance_target) # threshhold for turning between max 2m and distance to taget
+			T_Thresh = min(Turning_Threshhold * command.linear.x , distance_target) # threshhold for turning between max 2m and distance to taget
 
 			if min_forward_distance < 0.2: #checking for forward collision
 				rospy.logerr_throttle(5,f'Colided With wall. Reversing...')
