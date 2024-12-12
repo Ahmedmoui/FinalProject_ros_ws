@@ -167,6 +167,10 @@ class StudentController(RobotController):
 						
 			map_2D[rob_pos[0], rob_pos[1]] = 0
 			path = dijkstra(map_2D,rob_pos,des)
+			# if len(path) < 3:
+			# 	self.Goal_History.append(des)
+
+
 					
 		Path_as_waypoints = find_waypoints(map_2D,path)
 

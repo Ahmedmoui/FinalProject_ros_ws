@@ -176,7 +176,7 @@ def find_best_point(im, possible_points, robot_loc, previous_points, radius = 40
 
     # Initialize the best point and the minimum distance
     best_point = None
-    min_distance = 0.0
+    min_distance = float('inf')
     # Iterate through all possible points
 
     def distance(point1, point2):
@@ -194,7 +194,7 @@ def find_best_point(im, possible_points, robot_loc, previous_points, radius = 40
         Currrent_distance = distance(robot_loc, point)
 
         # Update the best point if a closer point is found
-        if Currrent_distance > min_distance:
+        if Currrent_distance < min_distance:
             best_point = point
             min_distance = Currrent_distance 
 
