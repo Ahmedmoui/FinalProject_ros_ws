@@ -30,7 +30,7 @@ class StudentDriver(Driver):
 			return True
 		return False
 
-	def get_twist(self, target, lidar):
+	def get_twist(self, target, lidar,):
 
 		K = 5 #gain for turing from objects
 		Turning_Threshhold = 2 # Range to start turning from walls m
@@ -59,13 +59,13 @@ class StudentDriver(Driver):
 		command = Driver.zero_twist()
 
 		# Forwards velocity goes here, in meters per second.
-		max_linear_speed = 0.4
+		max_linear_speed = 0.7
 		command.linear.x = min(max_linear_speed, distance_target * 0.5)
 		
 		command.linear.x *= (pi - abs(angle))/pi # slows the robot down if not pointing at target
 
 		# Rotational velocity goes here, in radians per second.  Positive is counter-clockwise.
-		max_angular_speed = pi / 5
+		max_angular_speed = pi / 3
 		command.angular.z = max(-max_angular_speed, min(max_angular_speed, angle * 2))
 
 		if lidar:
@@ -73,9 +73,9 @@ class StudentDriver(Driver):
 			min_forward_distance = min(lidar.ranges[i] for i in range(0,180))
 			T_Thresh = min(Turning_Threshhold * command.linear.x , distance_target) # threshhold for turning between max 2m and distance to taget
 
-			if min_forward_distance < 0.2: #checking for forward collision
+			if min_forward_distance < 0.25: #checking for forward collision
 				rospy.logerr_throttle(5,f'Colided With wall. Reversing...')
-				command.linear.x =  -.4 # reverse to give some space
+				command.linear.x =  -1 # reverse to give some space
 				
 
 			if min_forward_distance < T_Thresh: 
@@ -92,6 +92,10 @@ class StudentDriver(Driver):
 				command.angular.z += (turning_factor) * K  # add to original turning rate for avoiding corner
 				#rospy.loginfo(f'Twist_Commands: {(turning_factor)}')
 
+		return command
+	def Dance():
+		command = driver.zero_twist()
+		command.angular.z = 5
 		return command
 
 if __name__ == '__main__':

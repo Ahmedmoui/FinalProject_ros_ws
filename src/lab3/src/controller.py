@@ -137,7 +137,14 @@ class RobotController:
 		self.marker_pub.publish(array)
 
 	def _feedback_callback(self, feedback):
-		self.distance_update(feedback.distance.data)
+		point = PointStamped()
+		point.header = self._odom.header
+		point.point = self._odom.pose.pose.position
+		try:
+			point = self.transform_listener.transformPoint('map', point)
+		except:
+			point = None
+		self.distance_update(feedback.distance.data, point)
 
 	def set_waypoints(self, points):
 		self.action_client.cancel_goal()

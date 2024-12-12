@@ -162,7 +162,7 @@ def find_all_possible_goals(im):
     # Return as a single list
     return [(x, y) for y, x in coordinates]
 
-def find_best_point(im, possible_points, robot_loc, previous_points):
+def find_best_point(im, possible_points, robot_loc, previous_points, radius = 40):
     """ Pick one of the unseen points to go to
     @param im - thresholded image
     @param possible_points - possible points to chose from
@@ -178,14 +178,25 @@ def find_best_point(im, possible_points, robot_loc, previous_points):
     best_point = None
     min_distance = 0.0
     # Iterate through all possible points
-    for point in possible_points:
+
+    def distance(point1, point2):
+        return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+    
+    filtered_locations = []
+    
+    for loc in possible_points:
+        if all(distance(loc, goal) >= radius for goal in previous_points):
+            filtered_locations.append(loc)
+
+
+    for point in filtered_locations:
         # Calculate Euclidean distance from robot location
-        distance = np.sqrt((robot_loc[0] - point[0])**2 + (robot_loc[1] - point[1])**2)
+        Currrent_distance = distance(robot_loc, point)
 
         # Update the best point if a closer point is found
-        if distance > min_distance:
+        if Currrent_distance > min_distance:
             best_point = point
-            min_distance = distance 
+            min_distance = Currrent_distance 
 
     return best_point
 

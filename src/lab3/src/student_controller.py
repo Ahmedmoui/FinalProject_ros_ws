@@ -6,7 +6,13 @@ import rospy
 import signal
 import numpy as np
 
+import actionlib
+import tf
+
 from controller import RobotController
+from student_driver import StudentDriver
+from new_driver import Driver
+
 
 from exploring import find_all_possible_goals, find_best_point, plot_with_explore_points, find_waypoints, convert_pix_to_x_y, convert_x_y_to_pix
 from path_planning import convert_image, dijkstra
@@ -19,18 +25,30 @@ class StudentController(RobotController):
 	'''
 	def __init__(self):
 		super().__init__()
+
 		self.lock = False
 		self.Map = None
 		self.mapUpdate_iteration = 0
 		self.rob_pos = None
 		self.Goal_History = []
+		self.map_Metadata = None
+		self.last_waypoint = float('inf')
+		self.lastDistance = float('inf')
+		# Driver._cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+		# command = Driver.zero_twist()
+		# command.angular.z = 2
+		# Driver._cmd_pub.publish(command)
+
 
 		
-		#command = Driver.zero_twist()
-		#command.angular.z = 2
-		#Driver._cmd_pub.publish(command)
 
-	def distance_update(self, distance):
+	def distance_update(self, distance, point):
+		if point is not None:
+			robot_position = (point.point.x, point.point.y)
+			x, y = robot_position
+
+			rob_pos =  (int((x - self.map_Metadata.origin.position.x)/ self.resolution), int((y - self.map_Metadata.origin.position.y)/ self.resolution))
+			self.rob_pos = rob_pos
 		'''
 		This function is called every time the robot moves towards a goal.  If you want to make sure that
 		the robot is making progress towards it's goal, then you might want to check that the distance to
@@ -41,20 +59,34 @@ class StudentController(RobotController):
 		Parameters:
 			distance:	The distance to the current goal.
 		'''
+
 		Period = 3
-		waypointsLeftInQ = 3
-		#rospy.loginfo_throttle_identical(Period,f'Distance: {distance}')
+		waypointsLeftInQ = 1
+		
 		try:
 			rospy.loginfo_throttle_identical(Period,f'Waypoints left: {len(controller._waypoints)}')
 			if len(controller._waypoints) <= waypointsLeftInQ:
 				self.lock = False
-				rospy.loginfo('Path Lock off')
-			elif len(controller._waypoints) == 0:
+				rospy.loginfo_throttle_identical(Period,'Path Lock off')
+
 				rospy.loginfo_throttle_identical(Period,'Reached end of path "Waiting for new path"')
 				self.generate_path(self.Map,self.rob_pos,self.map_Metadata,self.resolution)
 
 		except:
 			rospy.loginfo_throttle_identical(Period,'No Waypoints.')
+			self.generate_path(self.Map,self.rob_pos,self.map_Metadata,self.resolution)
+
+		if len(controller._waypoints) < self.last_waypoint:
+			self.lastDistance = float('inf')
+			self.last_waypoint = len(controller._waypoints)
+			
+		if distance < self.lastDistance:
+			self.lastDistance = distance
+
+		#rospy.loginfo_throttle_identical(Period,f'Delta Distance: {distance - self.lastDistance}')
+		
+		if distance-1.5 > self.lastDistance:
+			self.generate_path(self.Map,self.rob_pos,self.map_Metadata,self.resolution)
 
 
 	def map_update(self, point, map, map_Metadata):
@@ -70,12 +102,16 @@ class StudentController(RobotController):
 			map_data:	A MapMetaData containing the current map meta data.
 		'''
 		rospy.loginfo('Got a map update.')
-
+		
 		map_size = (map_Metadata.width, map_Metadata.height)
+
 		resolution = map_Metadata.resolution
+
 		map_2D = np.array(map.data).reshape((map_size))
+		
+
 		self.Map = map_2D
-		self.map_metadata = map_Metadata
+		self.map_Metadata = map_Metadata
 		self.resolution = resolution
 
 		#rospy.loginfo(f'Frontier points {possible_pix}')
@@ -89,6 +125,7 @@ class StudentController(RobotController):
 			x, y = robot_position
 
 			rob_pos =  (int((x - map_Metadata.origin.position.x)/ resolution), int((y - map_Metadata.origin.position.y)/ resolution))
+
 			self.rob_pos = rob_pos
 			rospy.loginfo(f'Robot is at {robot_position} {point.header.frame_id}')
 			rospy.loginfo(f'map update #{self.mapUpdate_iteration}')
@@ -105,19 +142,31 @@ class StudentController(RobotController):
 			if controller._waypoints is not None:
 				if len(controller._waypoints) == 0:
 					self.lock = False
+					self.generate_path(map_2D,rob_pos,map_Metadata,resolution)
 					rospy.loginfo('Path Lock off')
 
 	
 
 	def generate_path(self, map_2D, rob_pos, map_Metadata,resolution):
-		possible_pix = find_all_possible_goals(map_2D)
-		des = find_best_point(map_2D,possible_pix, self.rob_pos, previous_points=self.Goal_History)
-		self.Goal_History.append(des)
+		path = [0,0] 
+		# making sure the pathfinding did not fail and redoing the pathfiding to another point
+		while len(path) < 3: 
+			rospy.loginfo("Generating Path")
+			possible_pix = find_all_possible_goals(map_2D)
 
-		Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
-					
-		map_2D[rob_pos[0], rob_pos[1]] = 0
-		path = dijkstra(map_2D,rob_pos,des)
+
+			des = find_best_point(map_2D,possible_pix, self.rob_pos, previous_points=self.Goal_History)
+			if des is None:
+				rospy.loginfo_once("Done. Map Explored!!!!!!!!, Executing the statue dance")
+				sys.exit()
+
+			self.Goal_History.append(des)
+			rospy.loginfo(f"Goal_History{self.Goal_History}")
+
+			Goal_point = ((des[0] * resolution) + map_Metadata.origin.position.x,(des[1] * resolution) + map_Metadata.origin.position.y)
+						
+			map_2D[rob_pos[0], rob_pos[1]] = 0
+			path = dijkstra(map_2D,rob_pos,des)
 					
 		Path_as_waypoints = find_waypoints(map_2D,path)
 
@@ -125,9 +174,12 @@ class StudentController(RobotController):
 		for point in Path_as_waypoints:
 			converted_path.append((point[0]*resolution + map_Metadata.origin.position.x, point[1]*resolution + map_Metadata.origin.position.y))
 		if converted_path is not None:
-			controller.set_waypoints(((converted_path)))
-			self.lock = True
-			rospy.loginfo('Path Lock On')
+			try:
+				controller.set_waypoints(((converted_path)))
+				self.lock = True
+				rospy.loginfo('Path Lock On')
+			except:
+				rospy.loginfo('Failed to Generate path')
 
 		
 	def convert_pos(point, map_size, resolution, map_metadata):
